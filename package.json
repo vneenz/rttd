@@ -1,5 +1,5 @@
 {
-    "name": "rttd",
+    "name": "@vneenz/rttd",
     "version": "0.1.0",
     "description": "Run-Time Type Definitions",
     "main": "dist/index.js",
