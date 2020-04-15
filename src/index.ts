@@ -41,22 +41,24 @@ type StaticResolve<T> =
     T extends RtBoolean ? boolean
     : unknown
 
-const Types = {
-    number(): RtNumber {
-        return {type: "number"}
-    },
-    string(): RtString {
-        return {type: "string"}
-    },
-    bool(): RtBoolean {
-        return {type: "boolean"}
-    },
-    array<T extends RtAny>(type: T): RtArray<T> {
-        return {type: "array", itemType: type}
-    },
-    object<T extends RtObjectProperties>(value: T): RtObject<T> {
-        return {type: "object", shape: value}
-    }
+function createNumber(): RtNumber {
+    return {type: "number"}
+}
+
+function createString(): RtString {
+    return {type: "string"}
+}
+
+function createBool(): RtBoolean {
+    return {type: "boolean"}
+}
+
+function createArray<T extends RtAny>(type: T): RtArray<T> {
+    return {type: "array", itemType: type}
+}
+
+function createObject<T extends RtObjectProperties>(value: T): RtObject<T> {
+    return {type: "object", shape: value}
 }
 
 function _validate(message: RtAny, data: any): boolean {
@@ -88,7 +90,11 @@ function validate<T extends RtAny, D = Resolve<T>>(message: T, data: any): data 
 }
 
 export {
-    Types as MessageTypes,
+    createArray as array,
+    createObject as object,
+    createBool as bool,
+    createNumber as number,
+    createString as string,
     Resolve,
     validate
 }
