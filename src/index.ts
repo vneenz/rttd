@@ -103,6 +103,7 @@ function validate<T extends RtAny, D = Resolve<T>>(message: T, data: any): data 
 }
 
 export {
+    validate,
     createArray as array,
     createObject as object,
     createBool as bool,
@@ -110,5 +111,11 @@ export {
     createString as string,
     createLiteral as literal,
     Resolve,
-    validate
+    RtAny as Any,
+    RtNumber as Number,
+    RtString as String,
+    RtBoolean as Bool,
+    RTLiteral as Literal,
+    RtArray as Array,
+    RtObject as Object
 }
