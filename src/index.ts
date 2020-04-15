@@ -10,6 +10,11 @@ type RtBoolean = {
     type: "boolean"
 }
 
+type RTLiteral<T> = {
+    type: "literal",
+    value: T
+}
+
 type RtArray<T extends RtAny> = {
     type: "array",
     itemType: T
@@ -25,7 +30,7 @@ type RtObject<T extends RtObjectProperties> = {
 }
 
 type RtPrimitive = RtBoolean | RtString | RtNumber;
-type RtAny = RtPrimitive | RtObject<any> | RtArray<any>
+type RtAny = RtPrimitive | RTLiteral<any> | RtObject<any> | RtArray<any>
 
 type ResolveProperties<T> = {
     [K in keyof T]: Resolve<T[K]>
@@ -38,11 +43,17 @@ type StaticResolve<T> =
     T extends RtArray<infer U> ? Resolve<U>[] :
     T extends RtNumber ? number :
     T extends RtString ? string :
-    T extends RtBoolean ? boolean
-    : unknown
+    T extends RtBoolean ? boolean :
+    T extends RTLiteral<infer U> ? U :
+    unknown
 
 function createNumber(): RtNumber {
     return {type: "number"}
+}
+
+type Primitive = string | number | boolean;
+function createLiteral<T extends Primitive>(literal: T): RTLiteral<T> {
+    return {type: "literal", value: literal};
 }
 
 function createString(): RtString {
@@ -64,6 +75,8 @@ function createObject<T extends RtObjectProperties>(value: T): RtObject<T> {
 function _validate(message: RtAny, data: any): boolean {
 
     switch(message.type) {
+        case "literal":
+            return message.value === data;
         case "string":
             return typeof(data) === "string";
         case "number":
@@ -95,6 +108,7 @@ export {
     createBool as bool,
     createNumber as number,
     createString as string,
+    createLiteral as literal,
     Resolve,
     validate
 }
