@@ -1,121 +1,111 @@
-type RtString = {
-    type: "string"
+
+export abstract class BaseType<T> {
+    readonly internalType!: T;
+    abstract parse(val: any): ParseResult<T>
 }
 
-type RtNumber = {
-    type: "number"
+export abstract class ComplexType<T, S> extends BaseType<T> {
+    abstract construct(val: T): S;
 }
 
-type RtBoolean = {
-    type: "boolean"
+export function ParseError(msg: string) {
+    return new Error(msg);
 }
 
-type RTLiteral<T> = {
-    type: "literal",
-    value: T
+export type ParseResult<T> = T | Error;
+export function parseOk<T>(res: ParseResult<T>): res is T {
+    return !(res instanceof Error);
 }
 
-type RtArray<T extends RtAny> = {
-    type: "array",
-    itemType: T
+export type Any = BaseType<any>;
+
+type ObjectDefinition = {
+    [k: string]: Any
+};
+
+type TypeOfObject<T extends ObjectDefinition> = {
+    [k in keyof T]: T[k]["internalType"]
 }
 
-type RtObjectProperties = {
-    [key: string]: RtAny
-}
+type UnionParams = [Any, ...Any[]]
+type TypeOfUnion<T extends UnionParams> = T[number]["internalType"]
+export type TypeOf<T extends Any> = T["internalType"];
 
-type RtObject<T extends RtObjectProperties> = {
-    type: "object",
-    shape: T
-}
+export class ObjectType<T extends ObjectDefinition> extends ComplexType<TypeOfObject<T>, TypeOfObject<T> > {
 
-type RtPrimitive = RtBoolean | RtString | RtNumber;
-type RtAny = RtPrimitive | RTLiteral<any> | RtObject<any> | RtArray<any>
+    private readonly shape: T;
 
-type ResolveProperties<T> = {
-    [K in keyof T]: Resolve<T[K]>
-}
-
-type Resolve<T> = StaticResolve<T>
-
-type StaticResolve<T> =
-    T extends RtObject<infer U> ? ResolveProperties<U> :
-    T extends RtArray<infer U> ? Resolve<U>[] :
-    T extends RtNumber ? number :
-    T extends RtString ? string :
-    T extends RtBoolean ? boolean :
-    T extends RTLiteral<infer U> ? U :
-    unknown
-
-function createNumber(): RtNumber {
-    return {type: "number"}
-}
-
-type Primitive = string | number | boolean;
-function createLiteral<T extends Primitive>(literal: T): RTLiteral<T> {
-    return {type: "literal", value: literal};
-}
-
-function createString(): RtString {
-    return {type: "string"}
-}
-
-function createBool(): RtBoolean {
-    return {type: "boolean"}
-}
-
-function createArray<T extends RtAny>(type: T): RtArray<T> {
-    return {type: "array", itemType: type}
-}
-
-function createObject<T extends RtObjectProperties>(value: T): RtObject<T> {
-    return {type: "object", shape: value}
-}
-
-function _validate(message: RtAny, data: any): boolean {
-
-    switch(message.type) {
-        case "literal":
-            return message.value === data;
-        case "string":
-            return typeof(data) === "string";
-        case "number":
-            return typeof(data) === "number";
-        case "boolean":
-            return typeof(data) === "boolean"
-        case "array":
-            if(!Array.isArray(data)) return false;
-            return data.every(item => validate(message.itemType, item))
-        case "object":
-            if(typeof(data) !== "object") return false;
-            for(const key of Object.keys(message.shape)) {
-                const valid = _validate(message.shape[key], data[key])
-                if(!valid) return false
-            }
-            return true;
+    constructor(shape: T) {
+        super();
+        this.shape = shape;
     }
 
-    return false;
+    construct(v: TypeOfObject<T>): TypeOfObject<T> {
+        return v;
+    }
+
+    parse(val: any): ParseResult<TypeOfObject<T>> {
+        if(val === null) return ParseError("Got null, expected object")
+        if(typeof val !== "object") return ParseError("Object expected");
+
+        for(const key of Object.keys(this.shape)) {
+            const entry = this.shape[key];
+            const res = entry.parse(val[key]);
+
+            if(!parseOk(res)) {
+                return ParseError(`Error in property ${key}: ${res}`)
+            }
+        }
+
+        return val as TypeOfObject<T>;
+    }
 }
 
-function validate<T extends RtAny, D = Resolve<T>>(message: T, data: any): data is D {
-    return _validate(message, data)
+export class NumberType extends BaseType<number> {
+    parse(val: any): ParseResult<number> {
+        const t = typeof val;
+        if(t !== "number") return ParseError(`Expected number, got ${t}`)
+        return val as number;
+    }
 }
 
-export {
-    validate,
-    createArray as array,
-    createObject as object,
-    createBool as bool,
-    createNumber as number,
-    createString as string,
-    createLiteral as literal,
-    Resolve,
-    RtAny as Any,
-    RtNumber as Number,
-    RtString as String,
-    RtBoolean as Bool,
-    RTLiteral as Literal,
-    RtArray as Array,
-    RtObject as Object
+export class StringType extends BaseType<string> {
+    parse(val: any): ParseResult<string> {
+        const t = typeof val;
+        if(t !== "string") return ParseError(`Expected string, got ${t}`)
+        return val as string;
+    }
+}
+
+export class LiteralType<T extends string|number> extends BaseType<T> {
+    private readonly value: T;
+
+    constructor(value: T) {
+        super();
+        this.value = value;
+    }
+
+    parse(val: any): ParseResult<T> {
+        if(val !== this.value) return ParseError(`Expected literal value ${this.value}, got ${val}`)
+        return val as T;
+    }
+}
+
+export class UnionType<T extends UnionParams> extends BaseType<TypeOfUnion<T>> {
+    private readonly types: T;
+
+    constructor(...types: T) {
+        super();
+        this.types = types;
+    }
+
+    parse(val: any): ParseResult<T> {
+        for(const type of this.types) {
+            const res = type.parse(val);
+            if(parseOk(res)) return val as T;
+        }
+
+        return ParseError("Union parse failed")
+    }
+
 }
